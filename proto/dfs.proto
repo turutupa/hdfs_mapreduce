@@ -1,0 +1,125 @@
+syntax = "proto3";
+option go_package = "./messages";
+
+enum ActionType {
+    LS = 0;
+    GET = 1;
+    PUT = 2;
+    RM = 3;
+    COMPUTE = 4;
+    CLUSTER_STATS = 5;
+    COMPUTE_STORE = 6;
+}
+
+enum ComputeType {
+    MAP = 0;
+    REDUCE = 1;
+}
+
+message ActionRequest {
+    ActionType type = 1; // get/put/post/rm
+    string file_name = 2;
+    string chunk_name = 3;
+    Chunk chunk = 4;
+    Plugin plugin = 5;
+    ComputeType compute_type = 6;
+    repeated Node reducers = 7;
+    repeated string file_names = 8; // reduce
+    bytes data = 9;
+    int32 reducer_number = 10; // reduce
+    string output_filename = 11; // compute
+}
+
+message Plugin {
+    string name = 1;
+    bytes plugin = 2;
+}
+
+message Registration {
+    Node node = 1;
+}
+
+// Storage Node heartbeat to Controller;
+// It will send its File Index on each heartbeat.
+// Not ideal.
+message Heartbeat {
+    repeated Chunk Chunks = 1;
+    Node storage_node = 2;
+    Stats stats = 3;
+}
+
+message Stats {
+    int32 downloaded = 1;
+    int32 uploaded = 2;
+    int32 replicated = 3;
+    int32 free_space = 4;
+}
+
+message Files {
+    repeated File files = 1;
+}
+
+message File {
+    string name = 1;
+    string dirname = 2;
+    repeated Chunk chunks = 3;
+}
+
+message Chunk {
+    string file_name = 1;
+    string chunk_name = 2;
+    int32 serial = 3;
+    int64 size = 4;
+    bytes data = 5;
+    map<string, Node> storage_nodes = 6;
+    int32 offset = 7;
+    int32 file_size = 8;
+}
+
+message Node {
+    string uuid = 1;
+    string hostname = 2;
+    int32 port = 3;
+    Stats stats = 4;
+}
+
+message StorageNodes {
+    repeated Node nodes = 1;
+}
+
+message Ack {
+    bool ok = 1;
+    string error_message = 2;
+}
+
+enum JobStatus {
+    job_accepted = 0;
+    job_mappers = 1;
+    job_reducers = 2;
+    job_done = 4;
+}
+
+message ComputationStatus {
+    bool ok = 1;
+    string error_message = 2;
+    JobStatus status = 3;
+    map<string, Node> files_table = 4;
+}
+
+message Wrapper {
+    // should have added here
+    // bool ok
+    // string error_message
+    // So I don't have to juggle between Ack Messages and the expected message
+    oneof msg {
+        Registration registration_message = 1;
+        Heartbeat heartbeat_message = 2;
+        Files files_message = 3;
+        File file_message = 4;
+        StorageNodes storage_nodes_message = 5;
+        ActionRequest action_request_message = 6;
+        Chunk chunk_message = 7;
+        ComputationStatus computation_status_message = 8;
+        Ack ack_message = 9;
+    }
+}
